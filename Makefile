@@ -1,4 +1,4 @@
-.PHONY: help setup init plan apply deploy destroy clean status ssh logs kubeconfig test
+.PHONY: setup init plan apply deploy destroy clean state_check status ssh logs kubeconfig test outputs token ping info
 
 # Default target
 help:
@@ -25,15 +25,19 @@ setup:
 
 init:
 	@echo "Initializing Terraform..."
-	cd terraform && terraform init
+	terraform -chdir=terraform init
 
 plan: init
 	@echo "Planning deployment..."
-	cd terraform && terraform plan
+	terraform -chdir=terraform plan
 
 apply: init
 	@echo "Applying Terraform configuration..."
-	cd terraform && terraform apply
+	terraform -chdir=terraform apply
+	@echo "Gathering SSH info from Terraform..."
+	@terraform -chdir=terraform output -json cluster_info | jq -r '.control_plane.ips[0]' > control_plane_ip.tmp
+	@terraform -chdir=terraform output -json cluster_info | jq -r '.workers.ips[]' > worker_node_ips.tmp
+	@echo "Cluster IPs found and written to temp files"
 
 deploy:
 	@echo "Running full deployment..."
@@ -41,11 +45,15 @@ deploy:
 
 destroy:
 	@echo "Destroying infrastructure..."
-	cd terraform && terraform destroy
+	terraform -chdir=terraform destroy
 
 clean:
-	@echo "Cleaning Terraform files..."
-	rm -rf .terraform .terraform.lock.hcl terraform.tfstate* *.log
+	@echo "Cleaning Terraform files, but not destroying infrastructure..."
+	rm -rf .terraform .terraform.lock.hcl terraform.tfstate* *.log *.tmp
+
+state_check:
+	@echo "Checking for Terraform output..."
+	@terraform -chdir=terraform output -json cluster_info 2>/dev/null 1>/dev/null
 
 status:
 	@echo "Cluster Status:"
@@ -53,13 +61,13 @@ status:
 	@echo ""
 	@export KUBECONFIG=$(shell pwd)/kubeconfig && kubectl get pods -A
 
-ssh:
+ssh: state_check
 	@echo "Connecting to control plane..."
-	@ssh ubuntu@192.168.1.180
+	@ssh ubuntu@$(shell cat control_plane_ip.tmp)
 
-logs:
+logs: state_check
 	@echo "K3s logs from control plane:"
-	@ssh ubuntu@192.168.1.180 "sudo journalctl -u k3s -n 50"
+	@ssh ubuntu@$(shell cat control_plane_ip.tmp) "sudo journalctl -u k3s -n 50"
 
 kubeconfig:
 	@echo "Kubeconfig location: $(shell pwd)/kubeconfig"
@@ -67,7 +75,7 @@ kubeconfig:
 	@echo "Export with:"
 	@echo "export KUBECONFIG=$(shell pwd)/kubeconfig"
 
-test:
+test: state_check
 	@echo "Deploying test nginx application..."
 	@export KUBECONFIG=$(shell pwd)/kubeconfig && \
 		kubectl create deployment nginx --image=nginx && \
@@ -78,26 +86,23 @@ test:
 
 # Show Terraform outputs
 outputs:
-	@cd terraform && terraform output
+	@terraform -chdir=terraform output
 
 # Get K3s token
 token:
-	@cd terraform && terraform output -raw k3s_token
+	@terraform -chdir=terraform output -raw k3s_token
 
 # Ping all nodes
-ping:
+ping: state_check
 	@echo "Pinging control plane..."
-	@ping -c 1 192.168.1.180 > /dev/null && echo "✓ Control plane (192.168.1.180)" || echo "✗ Control plane unreachable"
+	@ping -c 3 $(shell cat control_plane_ip.tmp) > /dev/null && echo "✓ Control plane ($(shell cat control_plane_ip.tmp))" || echo "✗ Control plane unreachable"
 	@echo "Pinging workers..."
-	@ping -c 1 192.168.1.185 > /dev/null && echo "✓ Worker 1 (192.168.1.185)" || echo "✗ Worker 1 unreachable"
-	@ping -c 1 192.168.1.186 > /dev/null && echo "✓ Worker 2 (192.168.1.186)" || echo "✗ Worker 2 unreachable"
-	@ping -c 1 192.168.1.187 > /dev/null && echo "✓ Worker 3 (192.168.1.187)" || echo "✗ Worker 3 unreachable"
-
+	@WORKER_COUNT=0
+	@for ip in $(shell cat worker_node_ips.tmp); do \
+		WORKER_COUNT=$$((WORKER_COUNT+1)); \
+		ping -c 3 $$ip > /dev/null && echo "✓ Worker $$WORKER_COUNT ($$ip)" || echo "✗ Worker $$WORKER_COUNT ($$ip) unreachable"; \
+	done
 # Quick cluster info
 info:
 	@echo "=== Cluster Information ==="
-	@cd terraform && terraform output -json cluster_info | jq .
-	@echo ""
-	@echo "=== Node IPs ==="
-	@echo "Control Plane: $(shell cd terraform && terraform output -json control_plane_ips | jq -r '.[]')"
-	@echo "Workers: $(shell cd terraform && terraform output -json worker_ips | jq -r '.[]')"
+	@terraform -chdir=terraform output -json cluster_info | jq .
