@@ -40,7 +40,19 @@ variable "vm_id_start" {
   default     = 30000
 }
 
-variable "storage" {
+variable "full_clone" {
+  description = "Whether to create full clones (true) or linked clones (false)"
+  type        = bool
+  default     = true
+}
+
+variable "bios" {
+  description = "BIOS type for VMs (valid types: 'bios', 'ovmf')"
+  type        = string
+  default     = "bios"
+}
+
+variable "storage_pool" {
   description = "Storage pool for VM disks"
   type        = string
   default     = "local-zfs"
@@ -58,16 +70,28 @@ variable "bridge" {
   default     = "vmbr0"
 }
 
-variable "gateway" {
-  description = "Network gateway"
-  type        = string
-  default     = "192.168.1.1"
+variable "subnet" {
+  description = "Network subnet for VMs"
+  type = string
+  default = "172.16.22.0/23"
+}
+
+variable "control_plane_ip_offset" {
+  description = "IP offset for control plane VMs in subnet"
+  type        = number
+  default     = 180
+}
+
+variable "worker_ip_offset" {
+  description = "IP offset for worker VMs in subnet"
+  type        = number
+  default     = 185
 }
 
 variable "nameserver" {
   description = "DNS nameserver"
   type        = string
-  default     = "192.168.1.1"
+  default     = "192.168.100.1"
 }
 
 variable "searchdomain" {
@@ -104,7 +128,13 @@ variable "control_plane_disk_size" {
 variable "control_plane_ip_start" {
   description = "Starting IP for control plane nodes"
   type        = string
-  default     = "192.168.1.180"
+  default     = "192.168.100.180"
+}
+
+variable "control_plane_name_prefix" {
+  description = "Prefix for control plane node names"
+  type        = string
+  default     = "k3s-cp"
 }
 
 # Worker Configuration
@@ -135,7 +165,13 @@ variable "worker_disk_size" {
 variable "worker_ip_start" {
   description = "Starting IP for worker nodes"
   type        = string
-  default     = "192.168.1.185"
+  default     = "192.168.100.185"
+}
+
+variable "worker_name_prefix" {
+  description = "Prefix for worker node names"
+  type        = string
+  default     = "k3s-worker"
 }
 
 # K3s Configuration
