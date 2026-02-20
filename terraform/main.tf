@@ -129,7 +129,7 @@ resource "proxmox_vm_qemu" "k3s_worker" {
     bridge = var.bridge
   }
 
-  ipconfig0 = "ip=${cidrhost(var.subnet, var.worker_ip_offset + var.worker_count + count.index)}/${substr(var.subnet, -2, 2)},gw=${cidrhost(var.subnet, 1)}"
+  ipconfig0 = "ip=${cidrhost(var.subnet, var.worker_ip_offset + count.index)}/${substr(var.subnet, -2, 2)},gw=${cidrhost(var.subnet, 1)}"
 
   nameserver   = var.nameserver
   searchdomain = var.searchdomain
