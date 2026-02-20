@@ -1,3 +1,9 @@
+# lab prefixed files
+lab_*
+
+# temp files
+*.tmp
+
 # Terraform
 .terraform/
 *.tfstate
@@ -12,6 +18,7 @@ crash.log
 # Ansible
 *.retry
 ansible/*.retry
+ansible/inventory.yml
 
 # Kubeconfig
 kubeconfig
