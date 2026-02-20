@@ -64,6 +64,12 @@ variable "snippet_storage" {
   default     = "usb-storage-01"
 }
 
+variable "cicustom" {
+  description = "Proxmox cicustom string (optional)"
+  type = string
+  #default = "vendor=local:snippets/vendor.yaml"
+  default = ""
+}
 variable "bridge" {
   description = "Network bridge"
   type        = string

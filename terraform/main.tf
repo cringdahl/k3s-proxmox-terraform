@@ -67,6 +67,7 @@ resource "proxmox_vm_qemu" "k3s_control_plane" {
 
   ciuser     = "ubuntu"
   cipassword = "ubuntu"
+  cicustom   = var.cicustom
   sshkeys    = var.ssh_public_key
 
   lifecycle {
@@ -136,6 +137,7 @@ resource "proxmox_vm_qemu" "k3s_worker" {
 
   ciuser     = "ubuntu"
   cipassword = "ubuntu"
+  cicustom   = var.cicustom
   sshkeys    = var.ssh_public_key
 
   lifecycle {
